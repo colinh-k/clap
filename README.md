@@ -11,6 +11,3 @@
   - or should retrieving be done via >> operator ? No, bc we want to get by argument name
 - perform parsing on any given character stream (see ctor)
 
-
-## details
-- # clapp
