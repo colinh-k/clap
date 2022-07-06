@@ -1,7 +1,7 @@
 # compiler variables and flags
 CXX=g++
 # -02 for opt
-CXXFLAGS=-Wall -g -std=c++20
+CXXFLAGS=-Wall -g -std=c++17
 # command variabels
 RM=rm
 RMFLAGS=-rf
@@ -35,14 +35,17 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
 clean:
 	$(RM) $(RMFLAGS) ./$(BUILD_DIR) ./lib
 
-TEST_ARGS=-f true piplup.gif -p 9
+TEST_ARGS=true piplup.gif 15 36 45
 # @ suppresses the command output (but not the program's output)
 run:
 	@./$(MAIN_TARGET) $(TEST_ARGS)
+
+leaks:
+	@lldb ./$(MAIN_TARGET) $(TEST_ARGS)
 
 # create the .o and main executable directories as well as the
 #  test binary directory if they don't exist.
 $(BUILD_DIR) $(OBJ_DIR) $(BIN_DIR) $(INCL_DIR) $(LIB_DIR):
 	mkdir -p $@
 
-.PHONY: clean all run
+.PHONY: clean all run leaks
