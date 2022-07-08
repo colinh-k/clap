@@ -17,7 +17,7 @@
 - instead of throwing exceptions, maybe just show usage ?
 - hint for parameterized parsing type: require the type to support >> operator
 
-# Version Expectations
+# Development Version Expectations
 ## Version 1.0
 - parse string arguments
 - all args are required
@@ -25,3 +25,9 @@
 - every argument value access returns a vector of strings
 - able to specify the number of arguments expected for each positional argument, or default to 1
 - prints usage message if unable to parse the arguments
+
+## Version 2.0
+- arguments must have a long name
+- arguments may optionally have a short name
+  - {"filename", "f"} -> {--filename, -f}
+- all arguments are required
