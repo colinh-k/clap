@@ -3,11 +3,11 @@
 #include "clapp.hpp"
 
 int main(int argc, char const *argv[]) {
-    clapp::CommandLineArgumentParser clap;
+    clap::CommandLineArgumentParser clap;
 
-    clap.addArg("boolean");
-    clap.addArg("fname");
-    clap.addArg("range", 3);
+    clap.addArg({"boolean", "b"});
+    clap.addArg({"fname", "f"});
+    clap.addArg({"range", "r"}, 3);
     clap.parse(argc, argv);
 
     auto range = clap["range"];
