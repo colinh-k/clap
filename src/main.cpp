@@ -1,29 +1,28 @@
 #include <iostream>
 
-#include "clap.hpp"
+#include "../include/clap.hpp"
 
 int main(int argc, char const *argv[]) {
-    clap::CommandLineArgumentParser clap;
+    // clap::ArgumentParser parser("a program to do something special");
+    clap::ArgumentParser parser;
 
-    clap.addArg({"--boolean", "-b"});
-    clap.addArg({"--fname", "-f"});
-    clap.addArg({"range"}, 3);
-    clap.parse(argc, argv);
+    parser.addArg({"--boolean", "-b"}, "a boolean value");
+    parser.addArg({"--fname", "-f"}, "filename", 5);
+    parser.addArg({"range"}, "specify range bounds", 3);
 
-    auto range = clap["range"];
-    for (int i = 0; i < range.size(); i++) {
-        std::cout << range[i] << "\n";
-    }
+    clap::ArgumentMap map = parser.parse(argc, argv);
 
-    for (const auto& x : clap["boolean"]) {
+    for (const auto& x : map["range"]) {
         std::cout << x << '\n';
     }
 
-    for (const auto& x : clap["fname"]) {
+    for (const auto& x : map["b"]) {
         std::cout << x << '\n';
     }
 
-    std::cout << "done\n";
-    // std::cout << clap["what"];
+    for (const auto& x : map["f"]) {
+        std::cout << x << '\n';
+    }
+
     return 0;
 }
