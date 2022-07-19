@@ -22,6 +22,10 @@
   - like `F F F`, instead of `filename filename filename`
 - add a `hasValue/exists(std::string name)` function to query whether an argument was parsed with a value
 - to avoid using `shared_ptr`, maintain a vector of `ArgInfo`. then, map names to indexes in this vector
+- TODO: maybe we need to collect the boolean optional args into a single string to display together like `[-abc]`, instead of `[-a] [-b] [-c]` ?
+
+# NOTES
+- user must lookup arg names without '-' or '--' prefixes, even if the arg had a prefix to specify if the arg was required or optional
 
 # Development Version Notes
 ## Version 1.0
@@ -58,6 +62,9 @@
 - [x] return a new object from `parse()` with the argument map (and usage information), so the parser object can go out of scope without losing the argument map for lookup. also allows the map to not depend on the parsing object
 - [x] add a description to the parser in the parser's ctor
 - [x] store arguments in the map with their dash prefixes
+
+## Version 3.1
+- [ ] refactor for clarity
 
 ## Version 4.0
 - [ ] add default value that is used if no actual arguments are given
