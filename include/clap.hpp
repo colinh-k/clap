@@ -15,7 +15,7 @@
 namespace clap {
     bool isShortFlag(const std::string& name) {
         // short flags have the form '-c', where c can be any character
-        // return name.rfind("-", 0);
+        // NOTE: this check DOES recognize the '--' flag which may have a special meaning
         return name.size() == 2 && name.at(0) == '-';
     }
 
@@ -38,35 +38,18 @@ namespace clap {
             ArgInfo(const std::string& _longName,
                     const std::string& _shortName,
                     const std::string& _description,
-                    const int& _nargs) {
+                    const std::size_t& _nargs) {
                 // TODO: consider moving this logic to a function, and remove the isRequred variable.
                 // this may save space at the cost of more run time, since isRequired is used a lot.
                 // for now, ive made the decision to compute if each argument is required once and store that
                 // NOTE: if we would like to allow the _longName to be a short flag (and the _shortName is
                 // empty) to allow the user to only specify a short flag, maybe just replace
                 // !isLongFlag(_longName) with !isFlag(_longName) ?
+                longName = _longName;
                 shortName = _shortName;
+                description = _description;
                 nargs = _nargs;
                 hasValue = false;
-                longName = _longName;
-                description = _description;
-
-                isRequired = !isLongFlag(_longName);
-                // the name to represent the argument in the usage message
-                const std::string& repeatName = (!isRequired) ? _longName.substr(2) : _longName;
-
-                usage = std::string();
-                for (std::size_t i = 0; i < nargs; i++) {
-                    usage += repeatName + ' ';
-                }
-                // remove trailing space
-                usage.pop_back();
-
-                if (!isRequired) {
-                    // optional argument
-                    const std::string& argName = (shortName.empty()) ? longName : shortName;
-                    usage = '[' + argName + ((usage.empty()) ? "" : ' ' + usage) + ']';
-                }
             }
 
             // ArgInfo(const ArgInfo& copyme) = default;
@@ -78,15 +61,19 @@ namespace clap {
                 hasValue = true;
             }
 
+            bool isRequired() const {
+                return !isLongFlag(longName);
+            }
+
             std::string longName;
             std::string shortName;
-            int nargs;
-            bool isRequired;  // is a required argument (specified by user)
+            std::string description;
+            std::size_t nargs;
+            // bool isRequired;  // is a required argument (specified by user)
             bool hasValue;    // whether a value was added to this argument or not (for testing if this argument was given in the actual arg list)
             std::vector<std::string> values;
             // TODO: consider implementing operator<< instead of a usage variable
-            std::string usage;
-            std::string description;
+            // std::string usage;
     };
 
     struct ArgNames {
@@ -105,21 +92,29 @@ namespace clap {
             std::vector<std::string>& operator[](const std::string& name) {
                 // lookup by either long name or short name, or throw if
                 // the name does not exist
-                if (nameToArg.count(name)) {
-                    return nameToArg[name]->values;
-                }
-                if (nameToArg.count("-" + name)) {
-                    return nameToArg["-" + name]->values;
-                }
-                if (nameToArg.count("--" + name)) {
-                    return nameToArg["--" + name]->values;
-                }
-                throw std::invalid_argument("argument name '" + name + "' does not exist");
+                return getArg(name)->values;
+            }
+
+            bool hasValue(const std::string& name) {
+                // throws if the name does not exist
+                return getArg(name)->hasValue;
             }
 
         private:
             std::map<std::string, std::shared_ptr<ArgInfo>> nameToArg;
             std::string usage;
+
+            std::shared_ptr<ArgInfo>& getArg(const std::string& name) {
+                if (nameToArg.count(name)) {
+                    return nameToArg[name];
+                } else if (!isShortFlag(name) && name[0] != '-' && nameToArg.count("-" + name)) {
+                    // if it was a short flag, it would have been returned above
+                    return nameToArg["-" + name];
+                } else if (!isLongFlag(name) && nameToArg.count("--" + name)) {
+                    return nameToArg["--" + name];
+                }
+                throw std::invalid_argument("argument name '" + name + "' does not exist");
+            }
     }; // class ArgumentMap
 
     class ArgumentParser {
@@ -127,15 +122,12 @@ namespace clap {
             ArgumentParser(const std::string& _description=std::string()) {
                 description = _description;
                 // add the first reserved argument
-                std::shared_ptr<ArgInfo> argInfo = std::make_shared<ArgInfo>("--help", "-h", "display this help message", 0);
-                nameToArg[argInfo->longName] = argInfo;
-                nameToArg[argInfo->shortName] = argInfo;
-                optionalArgs.push_back(argInfo);
+                addArg({"--help", "-h"}, "display this help message", 0);
             }
 
             void addArg(const ArgNames& names,
                         const std::string& description,
-                        const int& nargs=1) {
+                        const std::size_t& nargs=1) {
                 // check for valid parameters
                 if (names.longName.empty()) {
                     throw std::invalid_argument("a long name is required for every argument");
@@ -164,7 +156,7 @@ namespace clap {
                 // store a pointer to the argument info in order
                 // TODO: only do this if the name is supposed to be positional,
                 // i.e., only when no flag name is specified ?
-                if (argInfo->isRequired) {
+                if (argInfo->isRequired()) {
                     positionalArgs.push_back(argInfo);
                 } else {
                     optionalArgs.push_back(argInfo);
@@ -182,7 +174,6 @@ namespace clap {
                 }
 
                 // TODO: expect the first argument to be the filename;
-                // consider adding the filename in the ctor
                 fname = argv[0];
                 argv = &argv[1];
                 argc--;
@@ -193,19 +184,14 @@ namespace clap {
                 std::size_t posi = 0;  // index into positional arg list
                 std::size_t argi = 0;  // index into actual argument list
                 while (argi < argc) {
-                    std::string arg{argv[argi]};
+                    const std::string arg{argv[argi]};
 
-                    if (std::string(argv[argi]) == "-h" || std::string(argv[argi]) == "--help") {
+                    if (arg == "-h" || arg == "--help") {
                         // special help case
                         help();
                     }
 
                     std::shared_ptr<ArgInfo> argInfo = nullptr;
-
-                    // if (isFlag(arg) && nameToArg.count(arg)) {
-
-                    // }
-
                     if (isFlag(arg)) {
                         if (nameToArg.count(arg)) {
                             argInfo = nameToArg[arg];
@@ -214,33 +200,7 @@ namespace clap {
                             // invalid flag
                             error("unrecognized flag '" + arg + "'");
                         }
-                    }
-
-                    // we must check if the name[1:] exists in the name map,
-                    // since the first character is '-', and the map does not store prefix dashes
-                    // std::size_t dashOffset = 0;
-                    // if (isShortFlag(arg)) {
-                    //     if (nameToArg.count(arg.substr(1))) {
-                    //         argInfo = nameToArg[arg.substr(1)];
-                    //         argi++;  // consume this argument as a flag name
-                    //     } else {
-                    //         // invalid flag
-                    //         error("unrecognized short flag '" + arg + "'");
-                    //     }
-                    // } else if (isLongFlag(arg)) {
-                    //     if (nameToArg.count(arg.substr(2))) {
-                    //         argInfo = nameToArg[arg.substr(2)];
-                    //         argi++;  // consume this argument as a flag name
-                    //     } else {
-                    //         // invalid flag
-                    //         error("unrecognized long flag '" + arg + "'");
-                    //     }
-                    // }
-                    // else if (arg == "-") {
-                    //     // character '-', which we interpret as an invalid flag
-                    //     error("unrecognized flag '-'");
-                    // }
-                    else {
+                    } else {
                         // non flag argument, so intepret it as the next positional argument
                         if (posi < positionalArgs.size()) {
                             argInfo = positionalArgs[posi];
@@ -260,24 +220,27 @@ namespace clap {
                             // index out of range for actual argument list
                             error("expected " + std::to_string(argInfo->nargs) + " argument(s) for '" + argInfo->longName + "'");
                         }
-                        if (std::string(argv[argi]) == "-h" || std::string(argv[argi]) == "--help") {
+
+                        const std::string argj{argv[argi]};
+
+                        if (argj == "-h" || argj == "--help") {
                             // special help case
                             help();
                         }
-                        if (isFlag(argv[argi])) {
-                            error("unexpected flag '" + std::string(argv[argi]) + "' when parsing argument '" + argInfo->longName + "'");
+                        if (isFlag(argj)) {
+                            error("unexpected flag '" + argj + "' when parsing argument '" + argInfo->longName + "'");
                         }
                         // consume the next nargs arguments and store them
                         // in the argInfo struct
                         // increment
-                        argInfo->addValue(argv[argi]);
+                        argInfo->addValue(argj);
                         argi++;
                     }
                 }
 
                 // check if all the required arguments recieved a value
                 for (auto& pair : nameToArg) {
-                    if (pair.second->isRequired && !(pair.second->hasValue)) {
+                    if (pair.second->isRequired() && !(pair.second->hasValue)) {
                         error("'" + pair.second->longName + "' is required");
                     }
                 }
@@ -293,10 +256,6 @@ namespace clap {
             // pointers to optional / flag / non-required arguments
             std::vector<std::shared_ptr<ArgInfo>> optionalArgs;  // TODO: could this be a std::set ?
             // usage strings:
-            // TODO: maybe we need to collect the boolean optional args into a single
-            // string to display together like [-abc], instead of [-a] [-b] [-c] ?
-            // std::string optionalNames;
-            // std::string requiredNames;
             std::string fname;
             std::string usage;
             // a description of the program to be displayed with help
@@ -305,13 +264,36 @@ namespace clap {
             void makeUsage() {
                 usage = "Usage: " + fname;
                 for (const auto& optionalArg : optionalArgs) {
-                    usage += " " + optionalArg->usage;
+                    usage += " " + formatUsage(optionalArg);
                 }
                 for (const auto& positionalArg : positionalArgs) {
-                    usage += " " + positionalArg->usage;
+                    usage += " " + formatUsage(positionalArg);
                 }
                 usage += '\n';
-                // TODO: output a help description (also add a -h option)
+            }
+
+            // helper function to format each ArgInfo into a usage string
+            const std::string formatUsage(const std::shared_ptr<ArgInfo>& argInfo) {
+                // choose the name to be repeated in the usage format, like: fname fname fname.
+                // NOTE: choose the long name (which is guaranteed to exist)
+                // making sure to remove the dash prefix if it exists
+                const std::string& repeatName = (!argInfo->isRequired()) ?
+                                                argInfo->longName.substr(2) :
+                                                argInfo->longName;
+
+                std::string usage = std::string();
+                for (std::size_t i = 0; i < argInfo->nargs; i++) {
+                    usage += repeatName + ' ';
+                }
+                // remove trailing space
+                usage.pop_back();
+
+                if (!argInfo->isRequired()) {
+                    // optional argument
+                    const std::string& argName = (argInfo->shortName.empty()) ? argInfo->longName : argInfo->shortName;
+                    usage = '[' + argName + ((usage.empty()) ? "" : ' ' + usage) + ']';
+                }
+                return usage;
             }
 
             void help() {
