@@ -198,6 +198,35 @@ QTestCase(ArgumentParser, TestMultipleArgsPerOption) {
     QTEST_EXPECT(map["filename"][0] == "file.txt");
 }
 
+QTestCase(ArgumentParser, TestHelpBasic) {
+    clap::ArgumentParser parser;
+    parser.addArg({"--destinations"}, "destinations", 2);
+    parser.addArg({"--sources"}, "sources", 3);
+    parser.addArg({"--filename"}, "a filename");
+    char const *argv[] = {"testProgram", "-h"};
+    QTEST_EXPECT_THROWS(parser.parse(2, argv), clap::HelpException);
+}
+
+QTestCase(ArgumentParser, TestHelpWithOtherFlags) {
+    clap::ArgumentParser parser;
+    parser.addArg({"--destinations"}, "destinations", 2);
+    parser.addArg({"--sources"}, "sources", 3);
+    parser.addArg({"--filename"}, "a filename");
+    char const *argv[] = {"testProgram", "--destinations",
+                          "dest1", "dest2", "-h",
+                          "--sources", "src1", "src2", "src3"};
+    QTEST_EXPECT_THROWS(parser.parse(9, argv), clap::HelpException);
+
+    clap::ArgumentParser parser2;
+    parser2.addArg({"--destinations"}, "destinations", 2);
+    parser2.addArg({"--sources"}, "sources", 3);
+    parser2.addArg({"--filename"}, "a filename");
+    char const *argv2[] = {"testProgram", "--destinations",
+                          "dest1", "-h", "dest2",
+                          "--sources", "src1", "src2", "src3"};
+    QTEST_EXPECT_THROWS(parser2.parse(9, argv2), clap::HelpException);
+}
+
 QTestCase(ArgumentMap, TestSingleFlagOnlyLongNameLookup) {
     clap::ArgumentParser parser;
     parser.addArg({"--filename"}, "a filename");
@@ -269,6 +298,8 @@ int main(int argc, char const *argv[]) {
     QTestRegister(ArgumentParser, TestLongAndShortNameOptionalAndPositionalSomeFlagsGiven);
     QTestRegister(ArgumentParser, TestMultipleArgsPerOption);
     QTestRegister(ArgumentParser, TestOptionalAndPositionalExtraArgInFlag);
+    QTestRegister(ArgumentParser, TestHelpBasic);
+    QTestRegister(ArgumentParser, TestHelpWithOtherFlags);
     // ArgumentParser, addArg: tests for adding arguments
     // ArgumentMap: tests for looking up arguments after parsing
     // 3
