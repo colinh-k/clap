@@ -65,6 +65,7 @@
 
 ## Version 3.1
 - [ ] refactor for clarity
+- [ ] throw exceptions on parser error, instead of calling `std::exit()`
 
 ## Version 4.0
 - [ ] add default value that is used if no actual arguments are given
