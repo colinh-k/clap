@@ -1,7 +1,7 @@
 # compiler variables and flags
 CXX=g++
 # -02 for opt
-CXXFLAGS=-Wall -g -std=c++17
+CXXFLAGS=-Wall -g -std=c++11
 # command variabels
 RM=rm
 RMFLAGS=-rf
