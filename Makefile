@@ -82,6 +82,9 @@ run-test:
 clean-test:
 	$(RM) $(RMFLAGS) ./$(TEST_BUILD_DIR)
 
+leaks-test:
+	@lldb ./$(TEST_TARGET)
+
 # create the .o and main executable directories as well as the
 #  test binary directory if they don't exist.
 $(BUILD_DIR) $(TEST_BUILD_DIR) $(MAIN_BUILD_DIR) $(OBJ_DIR) $(BIN_DIR) $(TEST_OBJ_DIR) $(TEST_BIN_DIR) $(INCL_DIR):
