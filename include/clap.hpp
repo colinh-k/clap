@@ -4,12 +4,15 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <sstream>  // for stringstream
 #include <algorithm>
 #include <iterator>
 #include <cstdlib>
 #include <memory>
-
 #include <stdexcept>  // for standard exception classes
+
+#include <any>
+
 #include "parse_exception.hpp"
 
 namespace clap {
@@ -37,7 +40,7 @@ namespace clap {
         // base exception class
         public:
             ClapException(const std::string& message) :
-                std::runtime_error(message) {}
+                std::runtime_error("error: " + message) {}
     };
 
     class ParseException : public ClapException {
@@ -65,39 +68,97 @@ namespace clap {
     };
 
     class HelpException : public ClapException {
-        // throws when the help flag is passed in the
+        // thrown when the help flag is passed in the
         // argument list (-h, --help)
         public:
             HelpException(const std::string& message) :
                 ClapException(message) {}
     };
 
-    // TODO: should this be a struct or class ?
+    // class TypeBase {
+    //     public:
+    //         TypeBase() {}
+    //         template <typename T>
+    //         virtual T& fromString(const std::string& str) = 0;
+    // };  // class Type
+
+    class ValueTypeBase {
+        public:
+            ValueTypeBase() = default;
+            virtual ~ValueTypeBase() = default;
+            virtual bool fromString(const std::string& str) { return true; }
+            std::any getValue() { return value; }
+            template <typename T>
+            T as() { return std::any_cast<T>(value); }
+        protected:
+            std::any value;
+    }; // class Type
+
+    template <typename T>
+    class ValueType : public ValueTypeBase {
+        public:
+            ValueType() = default;
+            bool fromString(const std::string& str) {
+                T v;
+                std::stringstream stream;
+                stream << str;
+                stream >> v;
+                char c;
+                if (stream.fail() || stream.get(c)) {
+                    // not an integer
+                    return false;
+                }
+                value = v;
+                return true;
+            }
+    }; // class Type
+
+    template <typename T>
+    std::shared_ptr<ValueTypeBase> makeValueType() {
+        return std::static_pointer_cast<ValueTypeBase>(std::make_shared<ValueType<T>>());
+    }
+
+    // class ValueTypeDouble : public ValueTypeBase {
+    //     public:
+    //         ValueTypeDouble(const ValueType_t& _valueType) : ValueTypeBase(_valueType) {}
+    //         virtual bool fromString(const std::string& str) override {
+    //             std::stringstream stream;
+    //             stream << str;
+    //             stream >> value;
+    //             char c;
+    //             if (stream.fail() || stream.get(c)) {
+    //                 // not an integer
+    //                 return false;
+    //             }
+    //             return true;
+    //         }
+    //         double getValue() { return value; }
+    //     private:
+    //         double value;
+    // }; // class Type
+
+    // TODO: should this be a struct or class ? it holds
+    // information about an argument (to be stored in a map)
+    // template <typename T>
     class ArgInfo {
         public:
             ArgInfo(const std::string& _longName,
                     const std::string& _shortName,
                     const std::string& _description,
-                    const std::size_t& _nargs) {
-                // TODO: consider moving this logic to a function, and remove the isRequred variable.
-                // this may save space at the cost of more run time, since isRequired is used a lot.
-                // for now, ive made the decision to compute if each argument is required once and store that
-                // NOTE: if we would like to allow the _longName to be a short flag (and the _shortName is
-                // empty) to allow the user to only specify a short flag, maybe just replace
-                // !isLongFlag(_longName) with !isFlag(_longName) ?
-                longName = _longName;
-                shortName = _shortName;
-                description = _description;
-                nargs = _nargs;
-                hasValue = false;
-            }
-
-            // ArgInfo(const ArgInfo& copyme) = default;
+                    const std::shared_ptr<ValueTypeBase>& valueTypePtr,
+                    const std::size_t& _nargs) : 
+                    longName(_longName),
+                    shortName(_shortName),
+                    description(_description),
+                    value(valueTypePtr),
+                    nargs(_nargs),
+                    hasValue(false) {}
             ArgInfo() = default;  // required for std::map to default construct elements
-            // ArgInfo& operator=(const ArgInfo& rhs) = default;
 
-            void addValue(const std::string& value) {
-                values.push_back(value);
+            void addValue(const std::string& _value) {
+                if (!value->fromString(_value)) {
+                    throw TypeException("'" + _value + " cannot be parsed as the expected type");
+                }
                 hasValue = true;
             }
 
@@ -108,12 +169,17 @@ namespace clap {
             std::string longName;
             std::string shortName;
             std::string description;
+            // std::shared_ptr<ValueTypeBase> value;
+            std::shared_ptr<ValueTypeBase> value;
             std::size_t nargs;
-            // bool isRequired;  // is a required argument (specified by user)
-            bool hasValue;    // whether a value was added to this argument or not (for testing if this argument was given in the actual arg list)
-            std::vector<std::string> values;
+            // whether a value was added to this argument or not (for
+            // testing if this argument was given in the actual arg list)
+            bool hasValue;
+            // std::vector<std::string> values;
+            
+            // Type<T> value;
+            // Type value;
             // TODO: consider implementing operator<< instead of a usage variable
-            // std::string usage;
     };
 
     struct ArgNames {
@@ -126,13 +192,14 @@ namespace clap {
 
     class ArgumentMap {
         public:
+            ArgumentMap() = default;
             ArgumentMap(std::map<std::string, std::shared_ptr<ArgInfo>>&& _nameToArg, std::string&& _usage) :
                 nameToArg(_nameToArg), usage(_usage) {}
 
-            std::vector<std::string>& operator[](const std::string& name) {
+            ValueTypeBase& operator[](const std::string& name) {
                 // lookup by either long name or short name, or throw if
                 // the name does not exist
-                return getArg(name)->values;
+                return *(getArg(name)->value);
             }
 
             bool hasValue(const std::string& name) {
@@ -159,14 +226,15 @@ namespace clap {
 
     class ArgumentParser {
         public:
-            ArgumentParser(const std::string& _description=std::string()) {
-                description = _description;
+            ArgumentParser(const std::string& _description=std::string()) :
+                description(_description) {
                 // add the first reserved argument
                 addArg({"--help", "-h"}, "display this help message", 0);
             }
 
             void addArg(const ArgNames& names,
                         const std::string& description,
+                        std::shared_ptr<ValueTypeBase> valueTypePtr,
                         const std::size_t& nargs=1) {
                 // check for valid parameters
                 if (names.longName.empty()) {
@@ -187,7 +255,7 @@ namespace clap {
                 // to here, so we can avoid storing argInfo.long/shortName.
                 // remember to also strip the '-/--' prefixes if we move the logic.
                 // NOTE: we can pass an isRequired param to the ArgInfo ctor instead
-                std::shared_ptr<ArgInfo> argInfo = std::make_shared<ArgInfo>(names.longName, names.shortName, description, nargs);
+                std::shared_ptr<ArgInfo> argInfo = std::make_shared<ArgInfo>(names.longName, names.shortName, description, valueTypePtr, nargs);
                 // TODO: consider storing the names with their prefixes ('-/--') in
                 // the map. this will prevent long names from being used with positional
                 // arguments ?
@@ -207,7 +275,8 @@ namespace clap {
             }
 
             ArgumentMap parse(int argc, char const **argv);
-            void help();
+            std::string help();
+            inline std::string getUsage() const { return usage; }
 
         private:
             // store names without dash prefixes as keys: e.g. f, filename
@@ -230,7 +299,7 @@ namespace clap {
                 for (const auto& positionalArg : positionalArgs) {
                     usage += " " + formatUsage(positionalArg);
                 }
-                usage += '\n';
+                // usage += '\n';
             }
 
             // helper function to format each ArgInfo into a usage string
@@ -344,26 +413,29 @@ namespace clap {
         return ArgumentMap(std::move(nameToArg), std::move(usage));
     }
 
-    void ArgumentParser::help() {
-        std::cout << usage << "\n";
+    std::string ArgumentParser::help() {
+        std::stringstream helpMsg;
+        helpMsg << usage << "\n";
 
         if (!description.empty()) {
-            std::cout << "Description:\n\t" << description << "\n\n";
+            helpMsg << "Description:\n\t" << description << "\n\n";
         }
 
-        std::cout << "Positional arguments:\n";
+        helpMsg << "Positional arguments:\n";
         for (const auto& positionalArg : positionalArgs) {
-            std::cout << "\t" << positionalArg->longName
+            helpMsg << "\t" << positionalArg->longName
                         << "\t" << positionalArg->description << "\n";
         }
 
-        std::cout << "\nOptional arguments:\n";
+        helpMsg << "\nOptional arguments:\n";
         for (const auto& optionalArg : optionalArgs) {
             const std::string& names = (optionalArg->shortName.empty()) ?
                                         optionalArg->longName :
                                         optionalArg->shortName + ", " + optionalArg->longName;
-            std::cout << "\t" << names
+            helpMsg << "\t" << names
                         << "\t" << optionalArg->description << "\n";
         }
+
+        return helpMsg.str();
     }
 };  // namespace clap
