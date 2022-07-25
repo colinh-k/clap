@@ -1,7 +1,7 @@
 # compiler variables and flags
 CXX=g++
 # -02 for opt
-CXXFLAGS=-Wall -g -std=c++11
+CXXFLAGS=-Wall -g -std=c++17
 # command variabels
 RM=rm
 RMFLAGS=-rf
@@ -40,13 +40,9 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
 clean:
 	$(RM) $(RMFLAGS) ./$(BUILD_DIR)
 
-# TEST_ARGS=-b true --fname piplup.gif
-# TEST_ARGS=-b true --
-TEST_ARGS=1 2 3 --boolean blah
-# TEST_ARGS=true piplup.gif 15 36 45 66
 # @ suppresses the command output (but not the program's output)
 run:
-	./$(MAIN_TARGET) $(TEST_ARGS)
+	@./$(MAIN_TARGET)
 
 leaks:
 	@lldb ./$(MAIN_TARGET) $(TEST_ARGS)
