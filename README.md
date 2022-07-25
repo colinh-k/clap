@@ -18,14 +18,18 @@
 - instead of throwing exceptions, maybe just show usage ?
 - hint for parameterized parsing type: require the type to support `>>` operator
   - also, make a template class to store type information, like `clap::Type<int>()`
-- allow metavaribale option ?
+- allow metavaribale parameter ?
   - like `F F F`, instead of `filename filename filename`
 - add a `hasValue/exists(std::string name)` function to query whether an argument was parsed with a value
 - to avoid using `shared_ptr`, maintain a vector of `ArgInfo`. then, map names to indexes in this vector
 - TODO: maybe we need to collect the boolean optional args into a single string to display together like `[-abc]`, instead of `[-a] [-b] [-c]` ?
+- possible feature:
+  - allow the user to supply a callback function that is executed if the associated argument is found. allow the function to take the command line arguments associated with that option, or require the function to take no parameters ?
 
 # NOTES
-- user must lookup arg names without '-' or '--' prefixes, even if the arg had a prefix to specify if the arg was required or optional
+- ~~user must lookup arg names without '-' or '--' prefixes, even if the arg had a prefix to specify if the arg was required or optional~~
+  - it is now possible to query args with dashes if they were defined as options (positional args still require no prefixes)
+- parsing strings to other types [here](https://stackoverflow.com/questions/194465/how-to-parse-a-string-to-an-int-in-c)
 
 # Development Version Notes
 ## Version 1.0
@@ -52,22 +56,28 @@
   - its long name is prefixed with '--' and its short name is a single character prefixed with '-'
 - required/positional:
   - long name without '--' implies positional argument, and the short name must be empty
-- only possible combinations (first two are optinoal, last is required):
+- only possible combinations (first two are optional, last is required):
   - `--filename, -f`, `--filename, ''`, `filename, ''`
 
 ## Version 3.0
-- [x] add `-h` help option
+- [x] add `-h` help option by default
 - [x] each argument has a description
   - descriptions are printed with the `-h` option (not when an error occurs)
 - [x] return a new object from `parse()` with the argument map (and usage information), so the parser object can go out of scope without losing the argument map for lookup. also allows the map to not depend on the parsing object
-- [x] add a description to the parser in the parser's ctor
+- [ ] add a description to the parser in the parser's ctor
 - [x] store arguments in the map with their dash prefixes
 
 ## Version 3.1
 - [ ] refactor for clarity
-- [ ] throw exceptions on parser error, instead of calling `std::exit()`
+- [x] throw exceptions on parser error, instead of calling `std::exit()`
 
 ## Version 4.0
+- [ ] add a type system to allow adding arguments with an expected type
+  - [ ] **require the type to support `operator>>`**
+  - [ ] for collection types (like `std::vector`), allow an optional `nargs` parameter to specify how many arguments are expected
+  - [ ] for all other types, a single argument is assumed
+
+## Version 5.0
 - [ ] add default value that is used if no actual arguments are given
 - [ ] if a default is given, the argument is not required in the actual arg list
   - [ ] but it can still have `-/--` prefixes in its name(s) or no prefixes (thus being positional) since a default value is always given when it is omitted in the actual arg list
@@ -76,9 +86,3 @@
   - [ ] print usage if the arg is not from this set
   - [ ] throw error / check if options in the list are not of the same expected type as the argument ?
     - [ ] is this necessary ? or can we just print usage when the actual arg is not in that list ? or will this be caught when the actual arg is from that list of the wrong type, when parsing is attempted as the wrong type ?
-
-## Version 5.0
-- [ ] add a type system to allow adding arguments with an expected type
-  - [ ] **require the type to support `operator>>`**
-  - [ ] for collection types (like `std::vector`), allow an optional `nargs` parameter to specify how many arguments are expected
-  - [ ] for all other types, a single argument is assumed
