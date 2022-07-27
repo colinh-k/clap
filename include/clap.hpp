@@ -75,12 +75,15 @@ namespace clap {
                 ClapException(message) {}
     };
 
-    // class TypeBase {
-    //     public:
-    //         TypeBase() {}
-    //         template <typename T>
-    //         virtual T& fromString(const std::string& str) = 0;
-    // };  // class Type
+    template <typename T>
+    struct is_cont {
+        static const bool value = false;
+    };
+
+    template <typename T>
+    struct is_cont<std::vector<T>> {
+        static const bool value = true;
+    };
 
     class ValueTypeBase {
         public:
@@ -89,7 +92,14 @@ namespace clap {
             virtual bool fromString(const std::string& str) { return true; }
             std::any getValue() { return value; }
             template <typename T>
-            T as() { return std::any_cast<T>(value); }
+            T as() {
+                try {
+                    return std::any_cast<T>(value); 
+                } catch (const std::bad_any_cast& e) {
+                    //  + std::string(typeid(T).name())
+                    throw TypeException("as() cannot convert argument value to the requested type");
+                }
+            }
         protected:
             std::any value;
     }; // class Type
@@ -97,7 +107,10 @@ namespace clap {
     template <typename T>
     class ValueType : public ValueTypeBase {
         public:
-            ValueType() = default;
+            ValueType() {
+                T t;
+                value = t;
+            };
             bool fromString(const std::string& str) {
                 T v;
                 std::stringstream stream;
@@ -106,7 +119,8 @@ namespace clap {
                 char c;
                 if (stream.fail() || stream.get(c)) {
                     // not an integer
-                    return false;
+                    // return false;
+                    throw TypeException("cannot parse '" + str + "' as the requested type");
                 }
                 value = v;
                 return true;
@@ -117,25 +131,6 @@ namespace clap {
     std::shared_ptr<ValueTypeBase> makeValueType() {
         return std::static_pointer_cast<ValueTypeBase>(std::make_shared<ValueType<T>>());
     }
-
-    // class ValueTypeDouble : public ValueTypeBase {
-    //     public:
-    //         ValueTypeDouble(const ValueType_t& _valueType) : ValueTypeBase(_valueType) {}
-    //         virtual bool fromString(const std::string& str) override {
-    //             std::stringstream stream;
-    //             stream << str;
-    //             stream >> value;
-    //             char c;
-    //             if (stream.fail() || stream.get(c)) {
-    //                 // not an integer
-    //                 return false;
-    //             }
-    //             return true;
-    //         }
-    //         double getValue() { return value; }
-    //     private:
-    //         double value;
-    // }; // class Type
 
     // TODO: should this be a struct or class ? it holds
     // information about an argument (to be stored in a map)
@@ -156,9 +151,10 @@ namespace clap {
             ArgInfo() = default;  // required for std::map to default construct elements
 
             void addValue(const std::string& _value) {
-                if (!value->fromString(_value)) {
-                    throw TypeException("'" + _value + " cannot be parsed as the expected type");
-                }
+                // if (!value->fromString(_value)) {
+                //     throw TypeException("'" + _value + " cannot be parsed as the expected type");
+                // }
+                value->fromString(_value);
                 hasValue = true;
             }
 
