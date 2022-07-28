@@ -17,7 +17,7 @@ QTestCase(ArgumentParser, TestMultipleFlagsOneGiven) {
     parser.addArg({"--filename"}, "a filename", clap::makeValueType<std::string>());
     char const *argv[] = {"testProgram", "--filename", "file.txt"};
     clap::ArgumentMap map = parser.parse(3, argv);
-    QTEST_EXPECT(map["filename"].as<std::string>() == "file.txt");
+    QTEST_EXPECT(map.get<std::string>("filename") == "file.txt");
     QTEST_EXPECT(!map.hasValue("destination"));
     QTEST_EXPECT(!map.hasValue("--destination"));
     QTEST_EXPECT(!map.hasValue("source"));
@@ -48,9 +48,9 @@ QTestCase(ArgumentParser, TestMultipleFlagsAllGiven) {
                           "--destination", "dest.txt",
                           "--filename", "file.txt"};
     clap::ArgumentMap map = parser.parse(7, argv);
-    QTEST_EXPECT(map["filename"].as<std::string>() == "file.txt");
-    QTEST_EXPECT(map["destination"].as<std::string>() == "dest.txt");
-    QTEST_EXPECT(map["source"].as<std::string>() == "src.txt");
+    QTEST_EXPECT(map.get<std::string>("filename") == "file.txt");
+    QTEST_EXPECT(map.get<std::string>("destination") == "dest.txt");
+    QTEST_EXPECT(map.get<std::string>("source") == "src.txt");
 }
 
 QTestCase(ArgumentParser, TestMultipleFlagsJustNameNoArgGiven) {
@@ -69,9 +69,9 @@ QTestCase(ArgumentParser, TestMultiplePositionalAllGiven) {
     parser.addArg({"filename"}, "a filename", clap::makeValueType<std::string>());
     char const *argv[] = {"testProgram", "dest.txt", "src.txt", "file.txt"};
     clap::ArgumentMap map = parser.parse(4, argv);
-    QTEST_EXPECT(map["filename"].as<std::string>() == "file.txt");
-    QTEST_EXPECT(map["destination"].as<std::string>() == "dest.txt");
-    QTEST_EXPECT(map["source"].as<std::string>() == "src.txt");
+    QTEST_EXPECT(map.get<std::string>("filename") == "file.txt");
+    QTEST_EXPECT(map.get<std::string>("destination") == "dest.txt");
+    QTEST_EXPECT(map.get<std::string>("source") == "src.txt");
 }
 
 QTestCase(ArgumentParser, TestMultiplePositionalSomeNotGiven) {
@@ -109,10 +109,10 @@ QTestCase(ArgumentParser, TestLongNameOptionalAndPositional) {
     parser.addArg({"--verbosity"}, "verbosity level", clap::makeValueType<std::string>());
     char const *argv[] = {"testProgram", "dest.txt", "src.txt", "--filename", "file.txt", "--verbosity", "high"};
     clap::ArgumentMap map = parser.parse(7, argv);
-    QTEST_EXPECT(map["filename"].as<std::string>() == "file.txt");
-    QTEST_EXPECT(map["destination"].as<std::string>() == "dest.txt");
-    QTEST_EXPECT(map["source"].as<std::string>() == "src.txt");
-    QTEST_EXPECT(map["verbosity"].as<std::string>() == "high");
+    QTEST_EXPECT(map.get<std::string>("filename") == "file.txt");
+    QTEST_EXPECT(map.get<std::string>("destination") == "dest.txt");
+    QTEST_EXPECT(map.get<std::string>("source") == "src.txt");
+    QTEST_EXPECT(map.get<std::string>("verbosity") == "high");
 }
 
 QTestCase(ArgumentParser, TestLongAndShortNameOptionalAndPositional) {
@@ -123,10 +123,10 @@ QTestCase(ArgumentParser, TestLongAndShortNameOptionalAndPositional) {
     parser.addArg({"--verbosity", "-v"}, "verbosity level", clap::makeValueType<std::string>());
     char const *argv[] = {"testProgram", "dest.txt", "src.txt", "-v", "high", "-f", "file.txt"};
     clap::ArgumentMap map = parser.parse(7, argv);
-    QTEST_EXPECT(map["filename"].as<std::string>() == "file.txt");
-    QTEST_EXPECT(map["destination"].as<std::string>() == "dest.txt");
-    QTEST_EXPECT(map["source"].as<std::string>() == "src.txt");
-    QTEST_EXPECT(map["verbosity"].as<std::string>() == "high");
+    QTEST_EXPECT(map.get<std::string>("filename") == "file.txt");
+    QTEST_EXPECT(map.get<std::string>("destination") == "dest.txt");
+    QTEST_EXPECT(map.get<std::string>("source") == "src.txt");
+    QTEST_EXPECT(map.get<std::string>("verbosity") == "high");
 }
 
 QTestCase(ArgumentParser, TestLongAndShortNameOptionalAndPositionalRandomOrder) {
@@ -137,10 +137,10 @@ QTestCase(ArgumentParser, TestLongAndShortNameOptionalAndPositionalRandomOrder) 
     parser.addArg({"--verbosity", "-v"}, "verbosity level", clap::makeValueType<std::string>());
     char const *argv[] = {"testProgram", "-v", "high", "dest.txt", "-f", "file.txt", "src.txt"};
     clap::ArgumentMap map = parser.parse(7, argv);
-    QTEST_EXPECT(map["filename"].as<std::string>() == "file.txt");
-    QTEST_EXPECT(map["destination"].as<std::string>() == "dest.txt");
-    QTEST_EXPECT(map["source"].as<std::string>() == "src.txt");
-    QTEST_EXPECT(map["verbosity"].as<std::string>() == "high");
+    QTEST_EXPECT(map.get<std::string>("filename") == "file.txt");
+    QTEST_EXPECT(map.get<std::string>("destination") == "dest.txt");
+    QTEST_EXPECT(map.get<std::string>("source") == "src.txt");
+    QTEST_EXPECT(map.get<std::string>("verbosity") == "high");
 }
 
 QTestCase(ArgumentParser, TestLongAndShortNameOptionalAndPositionalNoFlagsGiven) {
@@ -151,8 +151,8 @@ QTestCase(ArgumentParser, TestLongAndShortNameOptionalAndPositionalNoFlagsGiven)
     parser.addArg({"--verbosity", "-v"}, "verbosity level", clap::makeValueType<std::string>());
     char const *argv[] = {"testProgram", "dest.txt", "src.txt"};
     clap::ArgumentMap map = parser.parse(3, argv);
-    QTEST_EXPECT(map["destination"].as<std::string>() == "dest.txt");
-    QTEST_EXPECT(map["source"].as<std::string>() == "src.txt");
+    QTEST_EXPECT(map.get<std::string>("destination") == "dest.txt");
+    QTEST_EXPECT(map.get<std::string>("source") == "src.txt");
     QTEST_EXPECT(!map.hasValue("verbosity"));
     QTEST_EXPECT(!map.hasValue("filename"));
 }
@@ -165,9 +165,9 @@ QTestCase(ArgumentParser, TestLongAndShortNameOptionalAndPositionalSomeFlagsGive
     parser.addArg({"--verbosity", "-v"}, "verbosity level", clap::makeValueType<std::string>());
     char const *argv[] = {"testProgram", "dest.txt", "-f", "file.txt", "src.txt"};
     clap::ArgumentMap map = parser.parse(5, argv);
-    QTEST_EXPECT(map["destination"].as<std::string>() == "dest.txt");
-    QTEST_EXPECT(map["source"].as<std::string>() == "src.txt");
-    QTEST_EXPECT(map["filename"].as<std::string>() == "file.txt");
+    QTEST_EXPECT(map.get<std::string>("destination") == "dest.txt");
+    QTEST_EXPECT(map.get<std::string>("source") == "src.txt");
+    QTEST_EXPECT(map.get<std::string>("filename") == "file.txt");
     QTEST_EXPECT(!map.hasValue("verbosity"));
 }
 
@@ -181,68 +181,68 @@ QTestCase(ArgumentParser, TestOptionalAndPositionalExtraArgInFlag) {
     QTEST_EXPECT_THROWS(parser.parse(6, argv), clap::ParseException);
 }
 
-// QTestCase(ArgumentParser, TestMultipleArgsPerOption) {
-//     clap::ArgumentParser parser;
-//     parser.addArg({"--destinations"}, "destinations", 2);
-//     parser.addArg({"--sources"}, "sources", 3);
-//     parser.addArg({"--filename"}, "a filename");
-//     char const *argv[] = {"testProgram", "--destinations", "dest1.txt", "dest2.txt",
-//                           "--sources", "src1.txt", "src2.txt", "src3.txt",
-//                           "--filename", "file.txt"};
-//     clap::ArgumentMap map = parser.parse(10, argv);
-//     QTEST_EXPECT(map["destinations"].as<std::string>() == "dest1.txt");
-//     QTEST_EXPECT(map["destinations"][1] == "dest2.txt");
-//     QTEST_EXPECT(map["sources"].as<std::string>() == "src1.txt");
-//     QTEST_EXPECT(map["sources"][1] == "src2.txt");
-//     QTEST_EXPECT(map["sources"][2] == "src3.txt");
-//     QTEST_EXPECT(map["filename"].as<std::string>() == "file.txt");
-// }
+QTestCase(ArgumentParser, TestMultipleArgsPerOption) {
+    clap::ArgumentParser parser;
+    parser.addArg({"--destinations"}, "destinations", clap::makeValueType<std::vector<std::string>>(), 2);
+    parser.addArg({"--sources"}, "sources", clap::makeValueType<std::vector<std::string>>(), 3);
+    parser.addArg({"--filename"}, "a filename", clap::makeValueType<std::string>());
+    char const *argv[] = {"testProgram", "--destinations", "dest1.txt", "dest2.txt",
+                          "--sources", "src1.txt", "src2.txt", "src3.txt",
+                          "--filename", "file.txt"};
+    clap::ArgumentMap map = parser.parse(10, argv);
+    QTEST_EXPECT(map.get<std::vector<std::string>>("destinations")[0] == "dest1.txt");
+    QTEST_EXPECT(map.get<std::vector<std::string>>("destinations")[1] == "dest2.txt");
+    QTEST_EXPECT(map.get<std::vector<std::string>>("sources")[0] == "src1.txt");
+    QTEST_EXPECT(map.get<std::vector<std::string>>("sources")[1] == "src2.txt");
+    QTEST_EXPECT(map.get<std::vector<std::string>>("sources")[2] == "src3.txt");
+    QTEST_EXPECT(map.get<std::string>("filename") == "file.txt");
+}
 
-// QTestCase(ArgumentParser, TestHelpBasic) {
-//     clap::ArgumentParser parser;
-//     parser.addArg({"--destinations"}, "destinations", 2);
-//     parser.addArg({"--sources"}, "sources", 3);
-//     parser.addArg({"--filename"}, "a filename");
-//     char const *argv[] = {"testProgram", "-h"};
-//     QTEST_EXPECT_THROWS(parser.parse(2, argv), clap::HelpException);
-// }
+QTestCase(ArgumentParser, TestHelpBasic) {
+    clap::ArgumentParser parser;
+    parser.addArg({"--destinations"}, "destinations", clap::makeValueType<std::string>());
+    parser.addArg({"--sources"}, "sources", clap::makeValueType<std::string>());
+    parser.addArg({"--filename"}, "a filename", clap::makeValueType<std::string>());
+    char const *argv[] = {"testProgram", "-h"};
+    QTEST_EXPECT_THROWS(parser.parse(2, argv), clap::HelpException);
+}
 
-// QTestCase(ArgumentParser, TestHelpWithOtherFlags) {
-//     clap::ArgumentParser parser;
-//     parser.addArg({"--destinations"}, "destinations", 2);
-//     parser.addArg({"--sources"}, "sources", 3);
-//     parser.addArg({"--filename"}, "a filename");
-//     char const *argv[] = {"testProgram", "--destinations",
-//                           "dest1", "dest2", "-h",
-//                           "--sources", "src1", "src2", "src3"};
-//     QTEST_EXPECT_THROWS(parser.parse(9, argv), clap::HelpException);
+QTestCase(ArgumentParser, TestHelpWithOtherFlags) {
+    clap::ArgumentParser parser;
+    parser.addArg({"--destination"}, "destination", clap::makeValueType<std::string>());
+    parser.addArg({"--source"}, "source", clap::makeValueType<std::string>());
+    parser.addArg({"--filename"}, "a filename", clap::makeValueType<std::string>());
+    char const *argv[] = {"testProgram", "--destination",
+                          "dest", "-h",
+                          "--source", "src"};
+    QTEST_EXPECT_THROWS(parser.parse(6, argv), clap::HelpException);
 
-//     clap::ArgumentParser parser2;
-//     parser2.addArg({"--destinations"}, "destinations", 2);
-//     parser2.addArg({"--sources"}, "sources", 3);
-//     parser2.addArg({"--filename"}, "a filename");
-//     char const *argv2[] = {"testProgram", "--destinations",
-//                           "dest1", "-h", "dest2",
-//                           "--sources", "src1", "src2", "src3"};
-//     QTEST_EXPECT_THROWS(parser2.parse(9, argv2), clap::HelpException);
-// }
+    clap::ArgumentParser parser2;
+    parser2.addArg({"--destination"}, "destination", clap::makeValueType<std::string>());
+    parser2.addArg({"--source"}, "source", clap::makeValueType<std::string>());
+    parser2.addArg({"--filename"}, "a filename", clap::makeValueType<std::string>());
+    char const *argv2[] = {"testProgram", "--destination",
+                          "dest",
+                          "--source", "src", "-h"};
+    QTEST_EXPECT_THROWS(parser2.parse(6, argv2), clap::HelpException);
+}
 
 QTestCase(ArgumentMap, TestSingleFlagOnlyLongNameLookup) {
     clap::ArgumentParser parser;
     parser.addArg({"--filename"}, "a filename", clap::makeValueType<std::string>());
     char const *argv[] = {"testProgram", "--filename", "file.txt"};
     clap::ArgumentMap map = parser.parse(3, argv);
-    QTEST_EXPECT(map["filename"].as<std::string>() == "file.txt");
-    QTEST_EXPECT(map["--filename"].as<std::string>() == "file.txt");
-    QTEST_EXPECT_THROWS(map["-filename"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["f"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["-f"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["--f"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["invalid_name"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["-invalid_name"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["--invalid_name"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["-i"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["--i"], clap::InvalidNameException);
+    QTEST_EXPECT(map.get<std::string>("filename") == "file.txt");
+    QTEST_EXPECT(map.get<std::string>("--filename") == "file.txt");
+    QTEST_EXPECT_THROWS(map.get<std::string>("-filename"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("f"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("-f"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("--f"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("invalid_name"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("-invalid_name"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("--invalid_name"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("-i"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("--i"), clap::InvalidNameException);
 }
 
 QTestCase(ArgumentMap, TestSingleFlagWithShortNameLookup) {
@@ -250,18 +250,18 @@ QTestCase(ArgumentMap, TestSingleFlagWithShortNameLookup) {
     parser.addArg({"--filename", "-f"}, "a filename", clap::makeValueType<std::string>());
     char const *argv[] = {"testProgram", "--filename", "file.txt"};
     clap::ArgumentMap map = parser.parse(3, argv);
-    QTEST_EXPECT(map["filename"].as<std::string>() == "file.txt");
-    QTEST_EXPECT(map["--filename"].as<std::string>() == "file.txt");
-    QTEST_EXPECT(map["-f"].as<std::string>() == "file.txt");
-    QTEST_EXPECT(map["f"].as<std::string>() == "file.txt");
+    QTEST_EXPECT(map.get<std::string>("filename") == "file.txt");
+    QTEST_EXPECT(map.get<std::string>("--filename") == "file.txt");
+    QTEST_EXPECT(map.get<std::string>("-f") == "file.txt");
+    QTEST_EXPECT(map.get<std::string>("f") == "file.txt");
 
-    QTEST_EXPECT_THROWS(map["-filename"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["--f"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["invalid_name"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["-invalid_name"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["--invalid_name"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["-i"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["--i"], clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("-filename"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("--f"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("invalid_name"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("-invalid_name"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("--invalid_name"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("-i"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("--i"), clap::InvalidNameException);
 }
 
 QTestCase(ArgumentMap, TestSinglePositionalArgLookup) {
@@ -269,13 +269,13 @@ QTestCase(ArgumentMap, TestSinglePositionalArgLookup) {
     parser.addArg({"filename"}, "a filename", clap::makeValueType<std::string>());
     char const *argv[] = {"testProgram", "file.txt"};
     clap::ArgumentMap map = parser.parse(2, argv);
-    QTEST_EXPECT(map["filename"].as<std::string>() == "file.txt");
+    QTEST_EXPECT(map.get<std::string>("filename") == "file.txt");
 
-    QTEST_EXPECT_THROWS(map["-filename"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["--filename"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["--f"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["-f"], clap::InvalidNameException);
-    QTEST_EXPECT_THROWS(map["f"], clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("-filename"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("--filename"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("--f"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("-f"), clap::InvalidNameException);
+    QTEST_EXPECT_THROWS(map.get<std::string>("f"), clap::InvalidNameException);
 }
 
 int main(int argc, char const *argv[]) {
@@ -296,10 +296,10 @@ int main(int argc, char const *argv[]) {
     QTestRegister(ArgumentParser, TestLongAndShortNameOptionalAndPositionalRandomOrder);
     QTestRegister(ArgumentParser, TestLongAndShortNameOptionalAndPositionalNoFlagsGiven);
     QTestRegister(ArgumentParser, TestLongAndShortNameOptionalAndPositionalSomeFlagsGiven);
-    // QTestRegister(ArgumentParser, TestMultipleArgsPerOption);
+    QTestRegister(ArgumentParser, TestMultipleArgsPerOption);
     QTestRegister(ArgumentParser, TestOptionalAndPositionalExtraArgInFlag);
-    // QTestRegister(ArgumentParser, TestHelpBasic);
-    // QTestRegister(ArgumentParser, TestHelpWithOtherFlags);
+    QTestRegister(ArgumentParser, TestHelpBasic);
+    QTestRegister(ArgumentParser, TestHelpWithOtherFlags);
     // ArgumentParser, addArg: tests for adding arguments
     // ArgumentMap: tests for looking up arguments after parsing
     // 3
