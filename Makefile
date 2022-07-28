@@ -1,7 +1,7 @@
 # compiler variables and flags
 CXX=g++
 # -02 for opt
-CXXFLAGS=-Wall -g -std=c++17
+CXXFLAGS=-Wall -g -std=c++11
 # command variabels
 RM=rm
 RMFLAGS=-rf
@@ -45,7 +45,10 @@ run:
 	@./$(MAIN_TARGET)
 
 leaks:
-	@lldb ./$(MAIN_TARGET) $(TEST_ARGS)
+	@llvm ./$(MAIN_TARGET)
+
+debug:
+	@lldb ./$(MAIN_TARGET)
 
 # TEST TARGETS / VARIABLES
 TEST_BUILD_DIR=$(BUILD_DIR)/test
