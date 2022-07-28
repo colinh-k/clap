@@ -11,10 +11,6 @@
 #include <memory>
 #include <stdexcept>  // for standard exception classes
 
-#include <any>
-
-#include "parse_exception.hpp"
-
 namespace clap {
     bool isShortFlag(const std::string& name) {
         // short flags have the form '-c', where c can be any character
@@ -45,7 +41,7 @@ namespace clap {
 
     class ParseException : public ClapException {
         // thrown when argument(s) are supplied in the
-        // wrong order, or omitted
+        // wrong order, or omitted, or of the wrong type
         public:
             ParseException(const std::string& message) :
                 ClapException(message) {}
@@ -53,7 +49,7 @@ namespace clap {
 
     class TypeException : public ClapException {
         // thrown when an argument cannot be interpreted
-        // as the required type
+        // as the required type, or the user 
         public:
             TypeException(const std::string& message) :
                 ClapException(message) {}
@@ -76,55 +72,52 @@ namespace clap {
     };
 
     template <typename T>
-    struct is_cont {
-        static const bool value = false;
-    };
+    void parseValue(const std::string& str, T& value) {
+        std::stringstream stream;
+        stream << str;
+        stream >> value;
+        char c;
+        if (stream.fail() || stream.get(c)) {
+            // not an integer
+            throw TypeException("cannot parse '" + str + "' as the requested type");
+        }
+    }
 
     template <typename T>
-    struct is_cont<std::vector<T>> {
-        static const bool value = true;
-    };
+    void parseValue(const std::string& str, std::vector<T>& value) {
+        T t;
+        std::stringstream stream;
+        stream << str;
+        stream >> t;
+        char c;
+        if (stream.fail() || stream.get(c)) {
+            // not an integer
+            throw TypeException("cannot parse '" + str + "' as the requested type");
+        }
+        value.push_back(t);
+    }
 
     class ValueTypeBase {
         public:
             ValueTypeBase() = default;
             virtual ~ValueTypeBase() = default;
-            virtual bool fromString(const std::string& str) { return true; }
-            std::any getValue() { return value; }
-            template <typename T>
-            T as() {
-                try {
-                    return std::any_cast<T>(value); 
-                } catch (const std::bad_any_cast& e) {
-                    //  + std::string(typeid(T).name())
-                    throw TypeException("as() cannot convert argument value to the requested type");
-                }
-            }
-        protected:
-            std::any value;
+            virtual void fromString(const std::string& str) = 0;
     }; // class Type
 
     template <typename T>
     class ValueType : public ValueTypeBase {
         public:
-            ValueType() {
-                T t;
-                value = t;
-            };
-            bool fromString(const std::string& str) {
-                T v;
-                std::stringstream stream;
-                stream << str;
-                stream >> v;
-                char c;
-                if (stream.fail() || stream.get(c)) {
-                    // not an integer
-                    // return false;
-                    throw TypeException("cannot parse '" + str + "' as the requested type");
-                }
-                value = v;
-                return true;
+            ValueType() : result(std::make_shared<T>()) {}
+            ~ValueType() override = default;
+            virtual void fromString(const std::string& str) override {
+                parseValue(str, *result);
             }
+            const T& get() const {
+                return *result;
+            }
+        protected:
+            // TODO: change this variable name
+            std::shared_ptr<T> result{};
     }; // class Type
 
     template <typename T>
@@ -151,9 +144,6 @@ namespace clap {
             ArgInfo() = default;  // required for std::map to default construct elements
 
             void addValue(const std::string& _value) {
-                // if (!value->fromString(_value)) {
-                //     throw TypeException("'" + _value + " cannot be parsed as the expected type");
-                // }
                 value->fromString(_value);
                 hasValue = true;
             }
@@ -165,17 +155,11 @@ namespace clap {
             std::string longName;
             std::string shortName;
             std::string description;
-            // std::shared_ptr<ValueTypeBase> value;
             std::shared_ptr<ValueTypeBase> value;
             std::size_t nargs;
             // whether a value was added to this argument or not (for
             // testing if this argument was given in the actual arg list)
             bool hasValue;
-            // std::vector<std::string> values;
-            
-            // Type<T> value;
-            // Type value;
-            // TODO: consider implementing operator<< instead of a usage variable
     };
 
     struct ArgNames {
@@ -192,10 +176,15 @@ namespace clap {
             ArgumentMap(std::map<std::string, std::shared_ptr<ArgInfo>>&& _nameToArg, std::string&& _usage) :
                 nameToArg(_nameToArg), usage(_usage) {}
 
-            ValueTypeBase& operator[](const std::string& name) {
+            template <typename T>
+            const T& get(const std::string& name) {
                 // lookup by either long name or short name, or throw if
                 // the name does not exist
-                return *(getArg(name)->value);
+                try {
+                    return dynamic_cast<ValueType<T>&>(*(getArg(name)->value)).get();
+                } catch (const std::bad_cast& e) {
+                    throw TypeException("type parameter used to access value of '" + name + "' does not match declared type");
+                }
             }
 
             bool hasValue(const std::string& name) {
@@ -251,7 +240,9 @@ namespace clap {
                 // to here, so we can avoid storing argInfo.long/shortName.
                 // remember to also strip the '-/--' prefixes if we move the logic.
                 // NOTE: we can pass an isRequired param to the ArgInfo ctor instead
-                std::shared_ptr<ArgInfo> argInfo = std::make_shared<ArgInfo>(names.longName, names.shortName, description, valueTypePtr, nargs);
+                std::shared_ptr<ArgInfo> argInfo = std::make_shared<ArgInfo>(
+                    names.longName, names.shortName, description, valueTypePtr, nargs
+                );
                 // TODO: consider storing the names with their prefixes ('-/--') in
                 // the map. this will prevent long names from being used with positional
                 // arguments ?
@@ -295,7 +286,6 @@ namespace clap {
                 for (const auto& positionalArg : positionalArgs) {
                     usage += " " + formatUsage(positionalArg);
                 }
-                // usage += '\n';
             }
 
             // helper function to format each ArgInfo into a usage string
@@ -316,7 +306,9 @@ namespace clap {
 
                 if (!argInfo->isRequired()) {
                     // optional argument
-                    const std::string& argName = (argInfo->shortName.empty()) ? argInfo->longName : argInfo->shortName;
+                    const std::string& argName = (argInfo->shortName.empty()) ?
+                                                  argInfo->longName :
+                                                  argInfo->shortName;
                     usage = '[' + argName + ((usage.empty()) ? "" : ' ' + usage) + ']';
                 }
                 return usage;
@@ -378,7 +370,8 @@ namespace clap {
             for (std::size_t j = 0; j < argInfo->nargs; j++) {
                 if (argi >= argc) {
                     // index out of range for actual argument list
-                    throw ParseException("expected " + std::to_string(argInfo->nargs) + " argument(s) for '" + argInfo->longName + "'");
+                    throw ParseException("expected " + std::to_string(argInfo->nargs) +
+                                         " argument(s) for '" + argInfo->longName + "'");
                 }
 
                 const std::string argj{argv[argi]};
@@ -389,7 +382,9 @@ namespace clap {
                     throw HelpException("received help flag");
                 }
                 if (isFlag(argj)) {
-                    throw ParseException("unexpected flag '" + argj + "' when parsing argument '" + argInfo->longName + "'");
+                    throw ParseException("unexpected flag '" + argj +
+                                         "' when parsing argument '" +
+                                         argInfo->longName + "'");
                 }
                 // consume the next nargs arguments and store them
                 // in the argInfo struct
@@ -427,7 +422,8 @@ namespace clap {
         for (const auto& optionalArg : optionalArgs) {
             const std::string& names = (optionalArg->shortName.empty()) ?
                                         optionalArg->longName :
-                                        optionalArg->shortName + ", " + optionalArg->longName;
+                                        optionalArg->shortName + ", " +
+                                        optionalArg->longName;
             helpMsg << "\t" << names
                         << "\t" << optionalArg->description << "\n";
         }
