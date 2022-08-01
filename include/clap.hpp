@@ -104,7 +104,9 @@ namespace clap {
             virtual ~ValueTypeBase() = default;
             virtual void fromString(const std::string& str) = 0;
             virtual bool hasValue() const = 0;
-            // virtual bool hasDefault() const = 0;
+            // public std::enable_shared_from_this<ValueTypeBase>
+            // virtual std::shared_ptr<ValueTypeBase> defaultValue() = 0;
+            // virtual std::shared_ptr<ValueTypeBase> oneOf() = 0;
     }; // class Type
 
     template <typename T>
@@ -128,16 +130,17 @@ namespace clap {
                 parseValue(str, *result);
                 if (valueSet != nullptr && !(*valueSet).count(*result)) {
                     // check if the parsed value is part of the expected set
-                    throw TypeException("parsed value not part of the expected set");
+                    throw TypeException("parsed value '" + str + "' not part of the expected set");
                 }
                 _hasValue = true;
             }
             const T& get() const {
                 if (_hasValue) {
                     return *result;
-                } else {
+                } else if (defaultResult != nullptr) {
                     return *defaultResult;
                 }
+                throw ClapException("no value to return");
             }
             bool hasValue() const override { return _hasValue; }
             // bool hasDefault() const override { return defaultResult == nullptr; }
@@ -166,12 +169,23 @@ namespace clap {
         return std::static_pointer_cast<ValueTypeBase>(std::make_shared<ValueType<T>>(defaultValue));
     }
 
-    template <typename T>
+    template <
+        typename T,
+        // restrict the types that can have expected value sets to only integral types
+        // and strings
+        typename std::enable_if<
+            std::is_integral<T>::value ||
+            std::is_same<T, std::string>::value ||
+            std::is_same<T, bool>::value ||
+            std::is_same<T, double>::value ||
+            std::is_same<T, float>::value
+        >::type* = nullptr
+    >
     std::shared_ptr<ValueTypeBase> Type(std::set<T> valueSet) {
         return std::static_pointer_cast<ValueTypeBase>(std::make_shared<ValueType<T>>(valueSet));
     }
 
-    // TODO: add another Type() function that accepts a value set and a default value
+    // TODO: add another Type() function that accepts a value set *and* a default value
 
     // TODO: should this be a struct or class ? it holds
     // information about an argument (to be stored in a map)
@@ -229,6 +243,18 @@ namespace clap {
                 // lookup by either long name or short name, or throw if
                 // the name does not exist
                 try {
+                    // std::cerr << "1oof\n";
+                    // std::shared_ptr<ArgInfo> a = getArg(name);
+                    // std::cerr << "2oof\n";
+                    // std::shared_ptr<ValueTypeBase> v = a->value;
+                    // std::cerr << "3oof\n";
+                    // ValueTypeBase& b = *v;
+                    // std::cerr << "4oof\n";
+                    // ValueType<T>& t = dynamic_cast<ValueType<T>&>(b);
+                    // std::cerr << "5oof\n";
+                    // T e = t.get();
+                    // std::cerr << "6oof\n";
+                    // return e;
                     return dynamic_cast<ValueType<T>&>(*(getArg(name)->value)).get();
                 } catch (const std::bad_cast& e) {
                     throw TypeException("type parameter used to access value of '" + name + "' does not match declared type");
@@ -273,7 +299,7 @@ namespace clap {
                 if (names.longName.empty()) {
                     throw InvalidNameException("a long name is required for every argument");
                 } else if (!isLongFlag(names.longName) && !(names.shortName.empty())) {
-                    throw InvalidNameException("a positional argument may not have a short name");
+                    // throw InvalidNameException("a positional argument may not have a short name");
                 } else if (!isShortFlag(names.shortName) && !names.shortName.empty()) {
                     throw InvalidNameException("invalid short name '" + names.shortName + "'. must have the form '-c', where 'c' can be any single character");
                 } else if (isShortFlag(names.longName)) {
