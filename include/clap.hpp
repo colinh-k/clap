@@ -3,6 +3,7 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <set>
 #include <string>
 #include <sstream>  // for stringstream
 #include <algorithm>
@@ -49,7 +50,7 @@ namespace clap {
 
     class TypeException : public ClapException {
         // thrown when an argument cannot be interpreted
-        // as the required type, or the user 
+        // as the required type, or the user
         public:
             TypeException(const std::string& message) :
                 ClapException(message) {}
@@ -102,28 +103,75 @@ namespace clap {
             ValueTypeBase() = default;
             virtual ~ValueTypeBase() = default;
             virtual void fromString(const std::string& str) = 0;
+            virtual bool hasValue() const = 0;
+            // virtual bool hasDefault() const = 0;
     }; // class Type
 
     template <typename T>
     class ValueType : public ValueTypeBase {
         public:
-            ValueType() : result(std::make_shared<T>()) {}
+            ValueType() : result(std::make_shared<T>()), _hasValue(false) {}
+            ValueType(T& _defaultResult) :
+                result(std::make_shared<T>()),
+                // NOTE: invokes copy constructor of T
+                defaultResult(std::make_shared<T>(_defaultResult)),
+                _hasValue(false) {}
+
+            ValueType(std::set<T>& _valueSet) :
+                result(std::make_shared<T>()),
+                // NOTE: invokes copy constructor of std::set
+                valueSet(std::make_shared<std::set<T>>(_valueSet)),
+                _hasValue(false) {}
+
             ~ValueType() override = default;
             virtual void fromString(const std::string& str) override {
                 parseValue(str, *result);
+                if (valueSet != nullptr && !(*valueSet).count(*result)) {
+                    // check if the parsed value is part of the expected set
+                    throw TypeException("parsed value not part of the expected set");
+                }
+                _hasValue = true;
             }
             const T& get() const {
-                return *result;
+                if (_hasValue) {
+                    return *result;
+                } else {
+                    return *defaultResult;
+                }
             }
-        protected:
+            bool hasValue() const override { return _hasValue; }
+            // bool hasDefault() const override { return defaultResult == nullptr; }
+
+        private:
             // TODO: change this variable name
             std::shared_ptr<T> result{};
+            std::shared_ptr<T> defaultResult{};
+            // the set to which the actul argument must belong. i.e., the
+            // actual argument must be a member of this set
+            std::shared_ptr<std::set<T>> valueSet{};
+            // true if a value has been successfully parsed via fromString,
+            // false otherwise; used to indicate if the default
+            // value should be used. distinguishes between the
+            // default-ctor value of result and an actual / legitimate parsed value
+            bool _hasValue;
     }; // class Type
 
     template <typename T>
-    std::shared_ptr<ValueTypeBase> makeValueType() {
+    std::shared_ptr<ValueTypeBase> Type() {
         return std::static_pointer_cast<ValueTypeBase>(std::make_shared<ValueType<T>>());
     }
+
+    template <typename T>
+    std::shared_ptr<ValueTypeBase> Type(T defaultValue) {
+        return std::static_pointer_cast<ValueTypeBase>(std::make_shared<ValueType<T>>(defaultValue));
+    }
+
+    template <typename T>
+    std::shared_ptr<ValueTypeBase> Type(std::set<T> valueSet) {
+        return std::static_pointer_cast<ValueTypeBase>(std::make_shared<ValueType<T>>(valueSet));
+    }
+
+    // TODO: add another Type() function that accepts a value set and a default value
 
     // TODO: should this be a struct or class ? it holds
     // information about an argument (to be stored in a map)
@@ -134,23 +182,23 @@ namespace clap {
                     const std::string& _shortName,
                     const std::string& _description,
                     const std::shared_ptr<ValueTypeBase>& valueTypePtr,
-                    const std::size_t& _nargs) : 
+                    const std::size_t& _nargs) :
                     longName(_longName),
                     shortName(_shortName),
                     description(_description),
                     value(valueTypePtr),
-                    nargs(_nargs),
-                    hasValue(false) {}
+                    nargs(_nargs) {}
             ArgInfo() = default;  // required for std::map to default construct elements
 
             void addValue(const std::string& _value) {
                 value->fromString(_value);
-                hasValue = true;
             }
 
             bool isRequired() const {
                 return !isLongFlag(longName);
             }
+
+            bool hasValue() const { return value->hasValue(); }
 
             std::string longName;
             std::string shortName;
@@ -159,7 +207,7 @@ namespace clap {
             std::size_t nargs;
             // whether a value was added to this argument or not (for
             // testing if this argument was given in the actual arg list)
-            bool hasValue;
+            // bool hasValue;
     };
 
     struct ArgNames {
@@ -189,7 +237,7 @@ namespace clap {
 
             bool hasValue(const std::string& name) {
                 // throws if the name does not exist
-                return getArg(name)->hasValue;
+                return getArg(name)->hasValue();
             }
 
         private:
@@ -396,7 +444,7 @@ namespace clap {
 
         // check if all the required arguments recieved a value
         for (auto& pair : nameToArg) {
-            if (pair.second->isRequired() && !(pair.second->hasValue)) {
+            if (pair.second->isRequired() && !(pair.second->hasValue())) {
                 throw ParseException("'" + pair.second->longName + "' is required");
             }
         }
