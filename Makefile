@@ -45,7 +45,7 @@ run:
 	@./$(MAIN_TARGET)
 
 leaks:
-	@llvm ./$(MAIN_TARGET)
+	@leaks --atExit -- ./$(MAIN_TARGET)
 
 debug:
 	@lldb ./$(MAIN_TARGET)
@@ -82,11 +82,11 @@ clean-test:
 	$(RM) $(RMFLAGS) ./$(TEST_BUILD_DIR)
 
 leaks-test:
-	@lldb ./$(TEST_TARGET)
+	leaks --atExit -- ./$(TEST_TARGET)
 
 # create the .o and main executable directories as well as the
 #  test binary directory if they don't exist.
 $(BUILD_DIR) $(TEST_BUILD_DIR) $(MAIN_BUILD_DIR) $(OBJ_DIR) $(BIN_DIR) $(TEST_OBJ_DIR) $(TEST_BIN_DIR) $(INCL_DIR):
 	@mkdir -p $@
 
-.PHONY: clean all run leaks run-test test clean-test
+.PHONY: clean all run leaks run-test test clean-test leaks-test
