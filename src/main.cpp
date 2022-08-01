@@ -20,19 +20,22 @@ int main() {
     clap::ArgumentParser parser;
 
     parser.addArg({"operation"}, "specify the type of operation to perform {encrypt or decrypt}", clap::Type<std::string>({"encrypt", "decrypt"}));
-    parser.addArg({"--input", "-i"}, "the input file", clap::Type<std::string>());
-    parser.addArg({"--output", "-o"}, "the output filename", clap::Type<std::string>());
-    parser.addArg({"--key", "-k"}, "the key file", clap::Type<std::string>());
-    std::vector<int> s = {0, 10};
-    parser.addArg({"--range", "-r"}, "range for operation {first-byte last-byte", clap::Type<std::vector<int>>(s), 2);
+    parser.addArg({"input", "-i"}, "the input file", clap::Type<std::string>());
+    parser.addArg({"output", "-o"}, "the output filename", clap::Type<std::string>());
+    parser.addArg({"key", "-k"}, "the key file", clap::Type<std::string>());
+    parser.addArg({"double", "-d"}, "a double", clap::Type<double>({1.5, 2.5, 3.5}));
+    parser.addArg({"--range", "-r"}, "range for operation {first-byte last-byte}", clap::Type<std::vector<int>>({0, 10}), 2);
 
-    std::size_t argc = 11;
+    std::size_t argc = 10;
     // char const *argv[] = {"program_name", "--help"};
-    char const *argv[] = {"./utility", "encrypt",
-                          "-i", "input.txt",
-                          "-o", "output.txt",
-                          "-k", "key.txt",
-                          "--range", "5", "6"};
+    char const *argv[] = {
+        "./utility", "encrypt",
+        "-i", "input.txt",
+        "-o", "output.txt",
+        "-k", "key.txt",
+        "-d", "1.6"
+        // "--range", "5", "6"
+    };
 
     clap::ArgumentMap map;
     try {
@@ -59,6 +62,9 @@ int main() {
     
     std::string key = map.get<std::string>("key");
     std::cout << "key: " << key << '\n';
+
+    double dub = map.get<double>("double");
+    std::cout << "dub: " << dub << '\n';
     
     std::vector<int> range = map.get<std::vector<int>>("range");
     std::cout << "range: " << range[0] << ' ' << range[1] << '\n';
